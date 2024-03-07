@@ -5,6 +5,7 @@ from django.utils.translation import gettext_lazy as _
 from django.contrib.auth.models import User
 from django.db.models import Sum
 from django.urls import reverse
+from django.utils.functional import cached_property
 
 from tendenci.apps.perms.models import TendenciBaseModel
 from tendenci.libs.tinymce import models as tinymce_models
@@ -245,7 +246,11 @@ class Certification(models.Model):
             if certcat:
                 required_credits += certcat.required_credits
         return required_credits
-            
+
+    @cached_property
+    def total_credits_required(self):
+        return self.cert_required_credits()
+           
     # def credits_earned_by_user(self, user, category=None, d_num=0, for_diamond_number=False):
     #     """
     #     Get credits earned and required by category for user
@@ -611,6 +616,11 @@ class Transcript(models.Model):
             assign_diamond_number = kwargs.pop('assign_diamond_number', True)
             if assign_diamond_number and not self.apply_to:
                 self.apply_to = self.caculate_apply_to()
+        
+        for cert in Certification.objects.all():      
+            if not UserCertData.objects.filter(user=self.user, certification=cert).exists():
+                # add the user to UserCertData
+                UserCertData.objects.create(user=self.user, certification=cert)
         super(Transcript, self).save(*args, **kwargs)
 
 
@@ -665,7 +675,24 @@ class UserCertData(models.Model):
             return next_d_number
         else:
             return next_d_number - 1
-        
+
+    def email(self):
+        return self.user.email
+
+    @cached_property
+    def total_credits(self):
+        return self.user.transcript_set.filter(
+                       certification_track=self.certification
+                        ).filter(status='approved'
+                                 ).aggregate(Sum('credits'))['credits__sum']
+
+
+class UserCredit(UserCertData):
+    class Meta:
+        proxy = True
+        verbose_name = "User Credits"
+        verbose_name_plural = "User Credits"
+
 
 def get_transcript_zip_file_path(instance, filename):
     return "export/trainings/{filename}".format(
