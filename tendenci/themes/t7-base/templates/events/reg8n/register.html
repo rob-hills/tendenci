@@ -343,7 +343,140 @@
 
                </div>
                </div>  {# float-widow#}
-            </div> {# end of div id="reg-form-wrap" #}
+            </div>
+
+            <div id="registrant-forms">
+                {{ registrant.management_form }}
+                {% for form in registrant.forms %}
+                    {% with forloop.counter as forloop_counter %}
+                    <div id="registrant_{{ forloop.counter }}" class="registrant-form">
+                        <div class="registrant-header{% if total_regt_forms == 1 %} hidden{% endif %}">
+                            <span class="showhide"></span>{% trans "Registrant" %} #<span class="item-counter">{{ forloop_counter }}</span>:
+                        </div>
+
+                        <div class="{% cycle 'odd-registrant' 'even-registrant'%}">
+
+
+                            {% for field in form %}
+                            {% if field.label != 'Delete' and field.name != 'use_free_pass' %}
+                                {% if field.name == 'override' or field.name == 'override_price' %}
+                                <div class="form-field admin-{{ field.name }} override">
+                                    <div class="error">{{ field.errors }}</div>
+                                    {% if field|is_checkbox %}
+                                        <div>{{ field }} {{ field.label }}</div>
+                                    {% else %}
+                                        {% if field.name == 'override' %}
+                                        <div>{{ field }} <label for="id_registrant-{{ forloop_counter|add:'-1'}}-override">{{ field.label }}</label></div>
+                                        {% else %}
+                                        <div>{{ field.label }} {{ field }}</div>
+                                        {% endif %}
+                                    {% endif %}
+                                    {% if field.help_text %}
+                                    <div class="help-text">{{ field.help_text }}</div>
+                                    {% endif %}
+                                </div>
+                                {% else %}
+                                {% if field.name == 'memberid' %}
+                                <div class=" form-field memberid">
+                                    <div class="error">{{ field.errors }}</div>
+                                    <div>{{ field.label }}: {{ field }}</div>
+                                    <div class="help-text">{{ field.help_text }}</div>
+                                </div>
+                                {% else %}
+                                {% if field.name == 'reminder' %}
+                                <div class=" form-field reminder">
+                                    <div class="error">{{ field.errors }}</div>
+                                    <div>{{ field }} <label for="id_registrant-{{ forloop_counter|add:'-1'}}-reminder">{{ field.label }}</label></div>
+                                    <div class="help-text">{{ field.help_text }}</div>
+                                </div>
+                                {% else %}
+                                <div class="form-field{% if field.name == 'override' %} admin-override{% endif %}">
+                                    {% if field|is_checkbox %}
+                                    <div class="checkbox-input">
+                                    	{% if field.errors %}
+                                        <div class="error">{{ field.errors }}</div>
+                                        {% endif %}
+                                        <div class="field">
+                                        	<div class="form-label {% if field.field.required %} required{% endif %}">{{ field.label }}</div>
+                                        	{{ field }}
+                                        </div>
+                                        {% if field.help_text %}
+                                        <div class="help-text">{{ field.help_text }}</div>
+                                        {% endif %}
+                                    </div>
+                                    <div style="clear: both"><!-- IE7 --></div>
+                                    {% else %}
+                                    {% if field.name != 'attendance_dates' %}
+                                    {% if field.errors %}
+                                    <div class="error">{{ field.errors }}</div>
+                                    {% endif %}
+                                    <div class="form-label {% if field.field.required %} required{% endif %}">{{ field.label }}</div>
+                                    <div class="field">{{ field }}</div>
+                                    {% endif %}
+                                    {% if field.help_text %}
+                                    <div class="help-text">{{ field.help_text }}</div>
+                                    {% endif %}
+                                    {% endif %}
+                                </div>
+                                
+                                {% if field.name == 'attendance_dates' and event.requires_attendance_dates %}
+                                <div class="form-field attendance_dates">
+                                    {% if field.errors %}
+                                    <div class="error">
+                                        {{field.errors}}
+                                    </div>
+                                    {% endif %}
+                                    <div class="form-label">
+                                        {% blocktrans %}
+                                        <b>Please select the <span></span> date(s) you will be attending {{field.choices.length}} : </b>
+                                        {% endblocktrans %}
+                                    </div>
+                                    <div class="field">{{ field }}</div>
+                                    {% if field.help_text %}
+                                    <div class="help_text">
+                                        {{ field.help_text }}
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            {% endif %}
+                                {% endif %}
+                                {% endif %}
+                                {% endif %}
+                            {% endif %}
+                            {% endfor %}
+
+                            {% if not event.is_table and event.registration_configuration.allow_free_pass %}
+                            <div class="free-pass-wrap">
+                            <button type="button" class="fp_chk_btn">{% trans "Check Free Pass Eligibility" %}</button>
+                            *** for corporate members only
+                            <div class="free-pass-message"></div>
+                            <div class="fp-field">{{ form.use_free_pass }}<label for="id_registrant-{{ forloop_counter|add:'-1'}}-use_free_pass"> {{ form.use_free_pass.label }}</label></div>
+                            </div>
+                            {% endif %}
+
+                            {% if form.DELETE %}
+                            <div class="form-field delete{% if forloop.first %} hidden{% endif %}">
+                                <div class="delete-button-wrap">
+                                    <button type="button" class="btn btn-danger delete-button">&nbsp;&nbsp;{% trans "Delete" %}</button>
+                                </div>
+
+                                <noscript>
+                                    <div>{{ form.DELETE }} {% trans "Delete" %}</div>
+                                </noscript>
+
+                            </div>
+                            {% endif %}
+
+                        </div>
+                        {% if forloop_counter == 1 and event.is_table %}
+                        <button type="button" class="btn btn-default" id="populate-fields">{% blocktrans %}Auto fill guest(s) infomation
+                            <br /><small>Guests' company name, phone, etc are the same as mine</small>{% endblocktrans %}</button>
+                        {% endif %}
+
+                    </div>
+                {% endwith %}
+                {% endfor %}
+            </div>
 
              {% if not event.is_table and event.registration_configuration.allow_guests %}
             <div class="add-registrant-box">
@@ -593,7 +726,7 @@ $(function () {
 	
 	// hide the checkbox in front of the addons
 	$("input[name=add-addons]").hide();
-	
+
  	if ($('input[id="id_addon-TOTAL_FORMS"]').attr('value') == "0") {
 	   $('input[name="add-addons"]').each(function() {
 	      i = $(this).attr('value');

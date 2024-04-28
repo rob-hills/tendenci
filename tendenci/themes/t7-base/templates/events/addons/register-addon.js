@@ -147,7 +147,11 @@ $(document).ready(function(){
                     for(var j=0; j<addon_num; j++){
                         addAddon('addon', addon_d, container);
                     }
+<<<<<<< HEAD
                     $("#add-addon-"+ addon.val() +"-count").val(0); // set qty to 0 after being processed
+=======
+                    $("#add-addon-"+ addon.val() +"-count").val(0);
+>>>>>>> 1232526c704bd8aa1bb1d57ebefa5270e75ae689
                 }
             }
         //} else {
