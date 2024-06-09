@@ -98,6 +98,17 @@ def event_current_app(context, user, event=None):
     return context
 
 
+@register.inclusion_tag("events/reg8n/check_in_modal.html", takes_context=True)
+def event_check_in_modal(context, registrant_id, form, message, is_session_set):
+    context.update({
+        "registrant_id": registrant_id, 
+        "form": form, 
+        "message": message,
+        "is_session_set": is_session_set
+        })
+    return context
+
+
 @register.inclusion_tag("events/clone_modal.html", takes_context=True)
 def event_clone_modal(context, event):
     context.update({"event": event})
@@ -546,10 +557,13 @@ class ListEventsNode(ListNode):
                 items = items.distinct()
 
         if event_type:
-            if ',' in event_type:
-                items = items.filter(type__name__in=event_type.split(','))
-            else:
-                items = items.filter(type__name__iexact=event_type)
+            if isinstance(event_type, int):
+                items = items.filter(type__id=event_type)
+            elif isinstance(event_type, str):
+                if ',' in event_type:
+                    items = items.filter(type__name__in=event_type.split(','))
+                else:
+                    items = items.filter(type__name__iexact=event_type)
 
         if tags:  # tags is a comma delimited list
             # this is fast; but has one hole

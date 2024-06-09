@@ -318,7 +318,6 @@ def get_formatted_messages(formats, label, context):
             'notification/%s/%s' % (label, format),
             'notification/%s' % format
         )
-
         template = render_to_string(template_name=list_of_templates, context=context)
 
         if template_name == 'short':

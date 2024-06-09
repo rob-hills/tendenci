@@ -57,6 +57,7 @@ from tendenci.apps.files.validators import FileValidator
 
 from .fields import UseCustomRegField
 from .widgets import UseCustomRegWidget
+from gevent.libev.corecext import NONE
 
 ALLOWED_LOGO_EXT = (
     '.jpg',
@@ -1074,9 +1075,12 @@ class EventForm(TendenciBaseForm):
         
         # If nested events is not enabled, remove it from the form
         if not nested_events:
-            del self.fields['event_relationship']
-            del self.fields['parent']
-            del self.fields['repeat_of']
+            if 'event_relationship' in self.fields:
+                del self.fields['event_relationship']
+            if 'parent' in self.fields:
+                del self.fields['parent']
+            if 'repeat_of' in self.fields:
+                del self.fields['repeat_of']
 
     def clean_photo_upload(self):
         photo_upload = self.cleaned_data['photo_upload']
@@ -1485,7 +1489,7 @@ class Reg8nConfPricingForm(FormControlWidgetMixin, BetterModelForm):
     end_dt = forms.SplitDateTimeField(label=_('End Date/Time'), initial=datetime.now()+timedelta(days=30,hours=6), help_text=_('The date time this price ceases to be available for registration'))
     price = PriceField(label=_('Price'), max_digits=21, decimal_places=2, initial=0.00)
     #dates = Reg8nDtField(label=_("Start and End"), required=False)
-    groups = forms.ModelMultipleChoiceField(required=False, queryset=None, help_text=_('Hold down "Control", or "Command" on a Mac, to select more than one.'))
+    groups = forms.ModelMultipleChoiceField(required=False, queryset=None, help_text=_('Hold down "Control", or "Command" on a Mac, to select more than one. If you have selected one but want to leave groups unselected, hold down "Control" +Z, or "Command" +Z on Mac, then click on the selected group.'))
     payment_required = forms.ChoiceField(required=False,
                                          choices=(('True', _('Yes')), ('False', _('No'))),
                                          initial='True')
@@ -2055,23 +2059,29 @@ class FreePassCheckForm(forms.Form):
     member_number = forms.CharField(max_length=50, required=False)
 
 
+class EventTitleChoiceField(forms.ModelChoiceField):
+    def label_from_instance(self, obj):
+        return f"{obj.title} {obj.start_dt.strftime('%I:%M %p').lstrip('0').replace(':00', '')} - {obj.end_dt.strftime('%I:%M %p').lstrip('0').replace(':00', '')}"
+    
+
 class EventCheckInForm(forms.Form):
     """
-    Form for digital check in for events and sub-events
+    Form to change sub-event to check-in registrants to
     """
-    def __init__(self, registrant, *args, **kwargs):
+    def __init__(self, event, request, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        if not registrant.child_events.exists():
+        if not event.has_child_events_today:
             self.fields['event'] = forms.HiddenInput()
         else:
-            queryset = registrant.child_events_available_for_check_in
-            default = queryset.filter(child_event__end_dt__gt=datetime.now()).first()
-            self.fields['event'] = forms.ModelChoiceField(
+            current = request.session.get('current_checkin')
+            queryset = event.child_events_today
+            default = current if current and queryset.filter(pk=current).exists() else queryset.first()
+            self.fields['event'] = EventTitleChoiceField(
                 queryset=queryset,
                 widget=forms.Select,
                 initial=default,
-                label=_("Check into Session"),
+                label=_("Check Registrants into Session"),
             )
 
 
@@ -2454,7 +2464,7 @@ class RegistrantBaseFormSet(BaseFormSet):
             if not get_setting('module', 'events', 'canregisteragain'):
                 # check if this user can register
                 if not self.user.is_superuser:
-                    if self.user.email.lower() != email.lower():
+                    if self.user.is_authenticated and self.user.email.lower() != email.lower():
                         raise forms.ValidationError(_(f"{email} is NOT your email address."))       
                 
                 # check if this email address is already used

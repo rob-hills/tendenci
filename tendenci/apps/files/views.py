@@ -71,13 +71,17 @@ def details(request, id, size=None, crop=False, quality=90, download=False, cons
             # log an event
             EventLog.objects.log(instance=file)
         if settings.USE_S3_STORAGE:
-            #return redirect(default_storage.url(cached_image))
+            if default_storage.exists(cached_image):
+                return redirect(default_storage.url(cached_image))
             return redirect(cached_image)
         return redirect('%s%s' % (get_setting('site', 'global', 'siteurl'), cached_image))
 
     # basic permissions
     if not has_view_perm(request.user, 'files.view_file', file):
-        raise Http403
+        # check if this user has the perm to view the associated object.
+        # if they can view the associated object, they should be able to view this file.
+        if not file.has_obj_view_perm(request.user):     
+            raise Http403
 
     # extra permission
     if not file.is_public:
